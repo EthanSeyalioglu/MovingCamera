@@ -5,7 +5,7 @@
     "board/esp32-wrover-kit-3.3v.cfg"
   ],
   "idf.port": "/dev/tty.usbserial-0001",
-  "idf.currentSetup": "/Users/ethanseyalioglu/.espressif/v6.0.2/esp-idf",
+  "idf.currentSetup": "/Users/aliyyseyalioglu/.espressif/v6.1/esp-idf",
   "idf.customExtraVars": {
     "IDF_TARGET": "esp32"
   },

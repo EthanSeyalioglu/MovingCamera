@@ -151,6 +151,8 @@ static esp_err_t servo_move_post_handler(httpd_req_t* req)
 {
     char content[128];
 
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+
     int received = httpd_req_recv(req, content, sizeof(content) - 1);
     if (received <= 0) {
         if (received == HTTPD_SOCK_ERR_TIMEOUT) {
@@ -191,19 +193,21 @@ static esp_err_t servo_move_post_handler(httpd_req_t* req)
     {
         if (strcmp(tilt->valuestring, "UP") == 0)
         {
-            cmd.pan = TILT_UP;
+            cmd.tilt = TILT_UP;
         }
-        else if (strcmp(pan->valuestring, "DOWN") == 0)
+        else if (strcmp(tilt->valuestring, "DOWN") == 0)
         {
-            cmd.pan = TILT_DOWN;
+            cmd.tilt = TILT_DOWN;
         }
     }
+
+    ESP_LOGI(TAG, "Pan: %d, Tilt: %d", cmd.pan, cmd.tilt);
 
     cJSON_Delete(json);
 
     uart_add_servo_cmd(&cmd);
 
-    httpd_send(req, "ok", 3);
+    httpd_resp_send(req, "ok", HTTPD_RESP_USE_STRLEN);
 
     return ESP_OK;
 }
@@ -212,6 +216,23 @@ static const httpd_uri_t servo_move = {
     .uri       = "/servo_move",
     .method    = HTTP_POST,
     .handler   = servo_move_post_handler,
+    .user_ctx  = NULL
+};
+
+/* Handles the browser's CORS preflight OPTIONS request for /servo_move */
+static esp_err_t servo_move_options_handler(httpd_req_t *req)
+{
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Methods", "POST, OPTIONS");
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Headers", "Content-Type");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
+static const httpd_uri_t servo_move_options = {
+    .uri       = "/servo_move",
+    .method    = HTTP_OPTIONS,
+    .handler   = servo_move_options_handler,
     .user_ctx  = NULL
 };
 
@@ -248,6 +269,7 @@ httpd_handle_t start_webserver(void)
         httpd_register_uri_handler(server, &hello);
         httpd_register_uri_handler(server, &echo);
         httpd_register_uri_handler(server, &servo_move);
+        httpd_register_uri_handler(server, &servo_move_options);
 
         return server;
     }
