@@ -1,0 +1,367 @@
+.app {
+  position: relative;
+  isolation: isolate;
+  max-width: 440px;
+  margin: 0 auto;
+  padding: clamp(2rem, 6vw, 3.5rem) 1.35rem 3rem;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1.75rem;
+}
+
+/* Soft vignette for depth — a plain radial gradient rather than a
+   rasterized noise/filter texture, which upscaled to blurry, blocky
+   "low quality image" static on high-DPI screens in the previous version. */
+.vignette {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background: radial-gradient(
+    ellipse 88% 72% at 50% 38%,
+    transparent 45%,
+    rgba(10, 6, 3, 0.3) 100%
+  );
+}
+
+.brand,
+.ip-block,
+.control-block {
+  position: relative;
+  z-index: 1;
+}
+
+.brand {
+  text-align: center;
+  animation: rise 0.7s ease-out both;
+}
+
+.brand-mark {
+  margin: 0 0 0.35rem;
+  font-family: var(--font-display);
+  font-size: clamp(2.4rem, 8vw, 3.15rem);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  color: var(--brass-soft);
+  background: linear-gradient(135deg, var(--brass-soft) 0%, var(--brass) 50%, var(--walnut-light) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.45));
+}
+
+.brand h1 {
+  margin: 0 0 0.65rem;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 500;
+  font-style: italic;
+  color: var(--moss-bright);
+  letter-spacing: 0.01em;
+}
+
+.lede {
+  margin: 0 auto;
+  max-width: 28ch;
+  font-size: 0.98rem;
+  color: var(--ink-soft);
+}
+
+.ip-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  animation: rise 0.7s ease-out 0.1s both;
+  padding: 1.1rem 1.15rem;
+  border-radius: 16px;
+  /* Glassy, but the walnut tint is strong enough (78-86% opacity) that it
+     reads as brown against the gray page rather than picking up the page's
+     own color through it. */
+  background: linear-gradient(160deg, rgba(78, 56, 32, 0.78), rgba(30, 21, 12, 0.86));
+  backdrop-filter: blur(18px) saturate(1.3);
+  -webkit-backdrop-filter: blur(18px) saturate(1.3);
+  border: 1px solid rgba(237, 201, 137, 0.32);
+  box-shadow:
+    var(--shadow-soft),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.35);
+}
+
+.ip-block label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--brass-soft);
+}
+
+.ip-row input {
+  width: 100%;
+  border: 1.5px solid rgba(215, 170, 98, 0.28);
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  background: rgba(9, 6, 4, 0.65);
+  color: var(--ink);
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.4);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
+}
+
+.ip-row input::placeholder {
+  color: rgba(183, 168, 142, 0.45);
+}
+
+.ip-row input:focus {
+  outline: none;
+  border-color: var(--brass);
+  background: rgba(14, 10, 6, 0.8);
+  box-shadow:
+    inset 0 1px 4px rgba(0, 0, 0, 0.4),
+    0 0 0 3px rgba(215, 170, 98, 0.22);
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0.15rem 0 0;
+  min-height: 1.35rem;
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+}
+
+.status-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--brass);
+  box-shadow: 0 0 0 3px rgba(204, 159, 87, 0.2);
+  transition:
+    background 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.status-ok .status-dot {
+  background: var(--status-ok);
+  box-shadow: 0 0 0 3px rgba(127, 187, 130, 0.25);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+.status-error .status-dot {
+  background: var(--status-err);
+  box-shadow: 0 0 0 3px rgba(224, 132, 104, 0.22);
+}
+
+.status-error {
+  color: var(--status-err);
+}
+
+.control-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.1rem;
+  animation: rise 0.7s ease-out 0.2s both;
+}
+
+.hint {
+  margin: 0;
+  text-align: center;
+  font-size: 0.86rem;
+  color: var(--ink-dim);
+  max-width: 28ch;
+}
+
+.dpad {
+  --pad-size: min(72vw, 280px);
+  width: var(--pad-size);
+  height: var(--pad-size);
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: 1fr 1fr 1fr;
+  gap: 0.6rem;
+  padding: 0.85rem;
+  border-radius: 30px;
+  /* Same glass treatment as .ip-block: translucent enough to blur the page
+     behind it, opaque enough that the walnut tone stays dominant. */
+  background:
+    radial-gradient(120% 120% at 25% 15%, rgba(255, 255, 255, 0.06), transparent 55%),
+    linear-gradient(155deg, rgba(96, 72, 44, 0.82) 0%, rgba(21, 14, 8, 0.9) 82%);
+  backdrop-filter: blur(20px) saturate(1.3);
+  -webkit-backdrop-filter: blur(20px) saturate(1.3);
+  border: 1px solid rgba(237, 201, 137, 0.34);
+  box-shadow:
+    var(--shadow),
+    inset 0 1px 0 rgba(237, 201, 137, 0.16),
+    inset 0 -3px 12px rgba(0, 0, 0, 0.55);
+  touch-action: none;
+  user-select: none;
+}
+
+.dpad-up {
+  grid-area: 1 / 2 / 2 / 3;
+}
+
+.dpad-left {
+  grid-area: 2 / 1 / 3 / 2;
+}
+
+.dpad-center {
+  grid-area: 2 / 2 / 3 / 3;
+  display: grid;
+  place-items: center;
+}
+
+.dpad-right {
+  grid-area: 2 / 3 / 3 / 4;
+}
+
+.dpad-down {
+  grid-area: 3 / 2 / 4 / 3;
+}
+
+.dpad-jewel {
+  --jewel-size: 1.5rem;
+  width: var(--jewel-size);
+  height: var(--jewel-size);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 28%, var(--brass-soft), var(--brass) 52%, var(--brass-deep) 100%);
+  box-shadow:
+    0 0 0 3px rgba(9, 6, 4, 0.55),
+    0 0 0 4px rgba(204, 159, 87, 0.28),
+    inset 0 1px 1px rgba(255, 255, 255, 0.5),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.4),
+    0 2px 6px rgba(0, 0, 0, 0.45);
+  position: relative;
+}
+
+.dpad-jewel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    linear-gradient(to bottom, rgba(20, 14, 8, 0.55) 0, transparent 1px, transparent calc(100% - 1px), rgba(20, 14, 8, 0.55) 100%),
+    linear-gradient(to right, rgba(20, 14, 8, 0.55) 0, transparent 1px, transparent calc(100% - 1px), rgba(20, 14, 8, 0.55) 100%);
+}
+
+.dpad-btn {
+  appearance: none;
+  border: none;
+  border-radius: 16px;
+  cursor: pointer;
+  position: relative;
+  display: grid;
+  place-items: center;
+  color: var(--brass-soft);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.1), transparent 42%),
+    linear-gradient(160deg, #65492c 0%, #2c2113 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 0 0 1px rgba(237, 201, 137, 0.26),
+    0 3px 0 rgba(0, 0, 0, 0.6),
+    0 8px 16px rgba(0, 0, 0, 0.4);
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease,
+    filter 0.12s ease,
+    background 0.12s ease,
+    color 0.12s ease;
+}
+
+.dpad-icon {
+  display: block;
+  pointer-events: none;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.4));
+}
+
+.dpad-icon svg {
+  display: block;
+  width: 1.6rem;
+  height: 1.6rem;
+}
+
+.dpad-btn:hover:not(:disabled) {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 0 0 1px rgba(237, 201, 137, 0.36),
+    0 4px 0 rgba(0, 0, 0, 0.6),
+    0 10px 18px rgba(0, 0, 0, 0.42);
+}
+
+.dpad-btn:active:not(:disabled),
+.dpad-btn.is-active:not(:disabled) {
+  color: var(--brass-soft);
+  transform: translateY(2px);
+  box-shadow:
+    inset 0 3px 8px rgba(0, 0, 0, 0.6),
+    inset 0 0 0 1px rgba(230, 193, 124, 0.45),
+    0 1px 0 rgba(0, 0, 0, 0.4);
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.32), transparent 50%),
+    linear-gradient(160deg, #42311d 0%, #1c150c 100%);
+}
+
+.dpad-btn.is-active:not(:disabled) .dpad-icon {
+  filter: drop-shadow(0 0 5px rgba(230, 193, 124, 0.65));
+}
+
+.dpad-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  filter: grayscale(0.4);
+}
+
+.dpad-btn:focus-visible {
+  outline: 2px solid var(--brass-soft);
+  outline-offset: 3px;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 0.85;
+  }
+}
+
+@media (max-width: 380px) {
+  .dpad {
+    --pad-size: 88vw;
+    gap: 0.5rem;
+    padding: 0.65rem;
+    border-radius: 24px;
+  }
+
+  .dpad-btn {
+    border-radius: 13px;
+  }
+
+  .dpad-icon svg {
+    width: 1.4rem;
+    height: 1.4rem;
+  }
+}
