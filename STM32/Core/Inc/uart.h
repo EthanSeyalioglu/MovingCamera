@@ -1,12 +1,23 @@
 #ifndef __UART_H
 #define __UART_H
 
+#include "servo_control.h"
 #include "stm32f4xx.h"
 
-#define ESP_MSG_LEN     12
+#define ESP_PCKT_LEN     2
 
-extern volatile char msg_buffer[ESP_MSG_LEN];
-extern volatile uint8_t msg_ready;
+
+typedef struct
+{
+    ServoDirection pan;
+    ServoDirection tilt;
+} servo_cmd_pckt_t;
+
+extern volatile char msg_buffer[ESP_PCKT_LEN];
+extern volatile uint8_t cmd_ready;
+extern volatile uint8_t cmd_index;
+extern volatile servo_cmd_pckt_t servo_cmd;
+
 
 uint16_t calculate_brr(uint32_t periph_clk, uint32_t baudrate);
 

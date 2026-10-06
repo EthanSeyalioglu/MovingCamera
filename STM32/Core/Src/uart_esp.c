@@ -7,9 +7,14 @@
 #define CLK_FREQ            16000000
 #define BAUDRATE            115200
 
-volatile char msg_buffer[ESP_MSG_LEN] = {'\0'};
-static volatile uint8_t msg_index = 0;
-volatile uint8_t msg_ready = 0;
+volatile char msg_buffer[ESP_PCKT_LEN] = {'\0'};
+volatile uint8_t cmd_index = 0;
+volatile uint8_t cmd_ready = 0;
+
+volatile servo_cmd_pckt_t servo_cmd = {
+    .pan = CENTER,
+    .tilt = CENTER
+};
 
 
 void uart_esp_init(void)
@@ -50,18 +55,35 @@ void uart_esp_rx_stop(void)
     USART1->CR1 &= ~USART_CR1_RE;
 }
 
-// Add global variables and macro definition to main
+
+// void USART1_IRQHandler(void)
+// {
+//     if (USART1->SR & USART_SR_RXNE)
+//     {
+//         msg_buffer[cmd_index++] = USART1->DR;
+
+//         if (cmd_index == ESP_MSG_LEN - 1)
+//         {
+//             msg_buffer[cmd_index] = '\0';
+//             cmd_ready = 1;
+//             cmd_index = 0;
+//         }
+//     }
+// }
+
+
 void USART1_IRQHandler(void)
 {
     if (USART1->SR & USART_SR_RXNE)
     {
-        msg_buffer[msg_index++] = USART1->DR;
-
-        if (msg_index == ESP_MSG_LEN - 1)
+        if (cmd_index == 0)
         {
-            msg_buffer[msg_index] = '\0';
-            msg_ready = 1;
-            msg_index = 0;
+            servo_cmd.pan = USART1->DR;
+        }
+        else if (cmd_index == 1)
+        {
+            servo_cmd.tilt = USART1->DR;
+            cmd_index = 0;
         }
     }
 }
