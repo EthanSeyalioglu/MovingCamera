@@ -9,6 +9,8 @@ static QueueHandle_t uart_tx_queue;
 #define RXD_PIN 5
 #define UART_BAUD_RATE 115200
 
+#define SERVO_FRAME_START 0xAA
+
 
 void uart_stm_init(void)
 {
@@ -54,6 +56,32 @@ void tx_task(void *arg)
     while (1) {
         sendData(TX_TASK_TAG, "Hello world");
         vTaskDelay(2000 / portTICK_PERIOD_MS);
+    }
+}
+
+void tx_cmd_task(void* arg)
+{
+    servo_cmd_t cmd;
+    static const char *TX_TASK_TAG = "TX_CMD_TASK";
+    esp_log_level_set(TX_TASK_TAG, ESP_LOG_INFO);
+
+    while (1) {
+        if (xQueueReceive(uart_tx_queue, &cmd, portMAX_DELAY) == pdTRUE) {
+
+            const uint8_t cmd_frame[3] = {
+                SERVO_FRAME_START,
+                (uint8_t) cmd.pan,
+                (uint8_t) cmd.tilt
+            };
+
+            const int txBytes = uart_write_bytes(UART_NUM_1, &cmd, sizeof(cmd_frame));
+            if (txBytes == -1) {
+                ESP_LOGE("SERVO_CMD_TX", "Failed to send cmd through UART");
+            }
+            else {
+                ESP_LOGI(TX_TASK_TAG, "Wrote %d command bytes (Pan: %d, Tilt: %d)", txBytes, cmd.pan, cmd.tilt);
+            }
+        }
     }
 }
 
