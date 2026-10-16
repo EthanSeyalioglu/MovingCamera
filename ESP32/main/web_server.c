@@ -201,7 +201,7 @@ static esp_err_t servo_move_post_handler(httpd_req_t* req)
         }
     }
 
-    ESP_LOGI(TAG, "Pan: %d, Tilt: %d", cmd.pan, cmd.tilt);
+    // ESP_LOGI(TAG, "Pan: %d, Tilt: %d", cmd.pan, cmd.tilt);
 
     cJSON_Delete(json);
 
