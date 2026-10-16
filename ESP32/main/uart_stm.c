@@ -74,9 +74,9 @@ void tx_cmd_task(void* arg)
                 (uint8_t) cmd.tilt
             };
 
-            const int txBytes = uart_write_bytes(UART_NUM_1, &cmd, sizeof(cmd_frame));
+            const int txBytes = uart_write_bytes(UART_NUM_1, cmd_frame, sizeof(cmd_frame));
             if (txBytes == -1) {
-                ESP_LOGE("SERVO_CMD_TX", "Failed to send cmd through UART");
+                ESP_LOGE(TX_TASK_TAG, "Failed to send cmd through UART");
             }
             else {
                 ESP_LOGI(TX_TASK_TAG, "Wrote %d command bytes (Pan: %d, Tilt: %d)", txBytes, cmd.pan, cmd.tilt);

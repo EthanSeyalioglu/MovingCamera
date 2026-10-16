@@ -10,6 +10,9 @@
 #include "driver/gpio.h"
 
 void uart_stm_init(void);
+
+void tx_cmd_task(void* arg);
+
 void tx_task(void *arg);
 void rx_task(void *arg);
 
