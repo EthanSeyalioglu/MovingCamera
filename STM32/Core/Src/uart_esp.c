@@ -7,6 +7,8 @@
 #define CLK_FREQ            16000000
 #define BAUDRATE            115200
 
+#define SERVO_FRAME_START   0xAA
+
 volatile char msg_buffer[ESP_PCKT_LEN] = {'\0'};
 volatile uint8_t cmd_index = 0;
 volatile uint8_t cmd_ready = 0;
@@ -76,14 +78,25 @@ void USART1_IRQHandler(void)
 {
     if (USART1->SR & USART_SR_RXNE)
     {
+        uint8_t byte = USART1->DR;
+
         if (cmd_index == 0)
         {
-            servo_cmd.pan = USART1->DR;
+            if (byte == SERVO_FRAME_START)
+            {
+                cmd_index = 2;
+            }
         }
         else if (cmd_index == 1)
         {
-            servo_cmd.tilt = USART1->DR;
+            servo_cmd.pan = byte;
+            cmd_index = 2;
+        }
+        else if (cmd_index == 2)
+        {
+            servo_cmd.tilt = byte;
             cmd_index = 0;
+            cmd_ready = 1;
         }
     }
 }

@@ -6,7 +6,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>\
+#include <stdbool.h>
 
 // test
 
@@ -52,6 +52,7 @@ int main(void)
         {
             direction_x = servo_cmd.pan;
             direction_y = servo_cmd.tilt;
+            cmd_ready = 0;
         }
         else
         {
