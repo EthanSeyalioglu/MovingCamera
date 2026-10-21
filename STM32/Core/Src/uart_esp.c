@@ -84,7 +84,7 @@ void USART1_IRQHandler(void)
         {
             if (byte == SERVO_FRAME_START)
             {
-                cmd_index = 2;
+                cmd_index = 1;
             }
         }
         else if (cmd_index == 1)

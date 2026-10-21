@@ -22,6 +22,7 @@ int main(void)
     uint32_t current_system_tick;
     uint32_t last_servo_update;
     // uint8_t test;
+    uint8_t dummy_cmd_counter;
 
     uart_debug_init();
     printf("UART_Debug Initialized\n\n");
@@ -45,6 +46,8 @@ int main(void)
 
     last_servo_update = system_get_ticks();
 
+    dummy_cmd_counter = 0;
+
     while (1)
     {
 
@@ -52,7 +55,15 @@ int main(void)
         {
             direction_x = servo_cmd.pan;
             direction_y = servo_cmd.tilt;
-            cmd_ready = 0;
+
+            // printf("Pan: %d, Tilt: %d\n\n", servo_cmd.pan, servo_cmd.tilt);
+            dummy_cmd_counter++;
+
+            if (dummy_cmd_counter > 100)
+            {
+                dummy_cmd_counter = 0;
+                cmd_ready = 0;
+            } 
         }
         else
         {
@@ -85,8 +96,8 @@ int main(void)
         //     printf("TEST VAL: %d\n\n", test);
         // }
         // printf("Msg Index: %d\n\n", cmd_index);
-        printf("Pulse Width X: %d\n", pulse_width_x);
-        printf("Pulse Width Y: %d\n\n", pulse_width_y);
+        // printf("Pulse Width X: %d\n", pulse_width_x);
+        // printf("Pulse Width Y: %d\n\n", pulse_width_y);
         // printf("Thumbstick X: %d\n", thumbstick_values[0]);
         // printf("Servo Direction: %d\n", direction_x);
         // printf("Thumbstick X: %d\nThumbstick Y: %d\n\n", thumbstick_values[0], thumbstick_values[1]);
