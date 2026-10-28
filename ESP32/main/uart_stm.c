@@ -1,5 +1,6 @@
 #include "uart_stm.h"
 #include "servo_cmd.h"
+#include <stdbool.h>
 
 static const int RX_BUF_SIZE = 1024;
 
@@ -10,6 +11,10 @@ static QueueHandle_t uart_tx_queue;
 #define UART_BAUD_RATE 115200
 
 #define SERVO_FRAME_START 0xAA
+
+/* The web client re-sends the held command every 100 ms. If nothing arrives
+ * for this long while a servo is moving, center it */
+#define CMD_TIMEOUT_MS 300
 
 
 void uart_stm_init(void)
@@ -62,25 +67,35 @@ void tx_task(void *arg)
 void tx_cmd_task(void* arg)
 {
     servo_cmd_t cmd;
+    bool moving = false;
     static const char *TX_TASK_TAG = "TX_CMD_TASK";
     esp_log_level_set(TX_TASK_TAG, ESP_LOG_INFO);
 
     while (1) {
-        if (xQueueReceive(uart_tx_queue, &cmd, portMAX_DELAY) == pdTRUE) {
-
-            const uint8_t cmd_frame[3] = {
-                SERVO_FRAME_START,
-                (uint8_t) cmd.pan,
-                (uint8_t) cmd.tilt
-            };
-
-            const int txBytes = uart_write_bytes(UART_NUM_1, cmd_frame, sizeof(cmd_frame));
-            if (txBytes == -1) {
-                ESP_LOGE(TX_TASK_TAG, "Failed to send cmd through UART");
+        if (xQueueReceive(uart_tx_queue, &cmd, pdMS_TO_TICKS(CMD_TIMEOUT_MS)) != pdTRUE) {
+            /* Client went quiet (browser froze, Wi-Fi dropped) */
+            if (!moving) {
+                continue;
             }
-            else {
-                ESP_LOGI(TX_TASK_TAG, "Wrote %d command bytes (Pan: %d, Tilt: %d)", txBytes, cmd.pan, cmd.tilt);
-            }
+            cmd.pan = PAN_NONE;
+            cmd.tilt = TILT_NONE;
+            ESP_LOGW(TX_TASK_TAG, "No command for %d ms, centering", CMD_TIMEOUT_MS);
+        }
+
+        moving = (cmd.pan != PAN_NONE || cmd.tilt != TILT_NONE);
+
+        const uint8_t cmd_frame[3] = {
+            SERVO_FRAME_START,
+            (uint8_t) cmd.pan,
+            (uint8_t) cmd.tilt
+        };
+
+        const int txBytes = uart_write_bytes(UART_NUM_1, cmd_frame, sizeof(cmd_frame));
+        if (txBytes == -1) {
+            ESP_LOGE(TX_TASK_TAG, "Failed to send cmd through UART");
+        }
+        else {
+            ESP_LOGI(TX_TASK_TAG, "Wrote %d command bytes (Pan: %d, Tilt: %d)", txBytes, cmd.pan, cmd.tilt);
         }
     }
 }

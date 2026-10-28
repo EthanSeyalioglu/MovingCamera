@@ -1,6 +1,10 @@
 #include "web_server.h"
 #include "servo_cmd.h"
 
+#if !CONFIG_HTTPD_WS_SUPPORT
+#error "Enable WebSocket support: idf.py menuconfig -> Component config -> HTTP Server -> WebSocket server support (CONFIG_HTTPD_WS_SUPPORT)"
+#endif
+
 
 #define EXAMPLE_HTTP_QUERY_KEY_MAX_LEN  (64)
 
@@ -147,6 +151,51 @@ static const httpd_uri_t echo = {
     .user_ctx  = NULL
 };
 
+/* Parses {"pan": "LEFT"|"RIGHT"|"CENTER", "tilt": "UP"|"DOWN"|"CENTER"}.
+ * CENTER, a missing field, or any other value leaves that axis at NONE (0). */
+static esp_err_t parse_servo_cmd(const char* content, servo_cmd_t* cmd)
+{
+    cJSON* json = cJSON_Parse(content);
+    if (json == NULL)
+    {
+        return ESP_FAIL;
+    }
+
+    cmd->pan = PAN_NONE;
+    cmd->tilt = TILT_NONE;
+
+    cJSON* pan = cJSON_GetObjectItem(json, "pan");
+    cJSON* tilt = cJSON_GetObjectItem(json, "tilt");
+
+    if (cJSON_IsString(pan))
+    {
+        if (strcmp(pan->valuestring, "LEFT") == 0)
+        {
+            cmd->pan = PAN_LEFT;
+        }
+        else if (strcmp(pan->valuestring, "RIGHT") == 0)
+        {
+            cmd->pan = PAN_RIGHT;
+        }
+    }
+    if (cJSON_IsString(tilt))
+    {
+        if (strcmp(tilt->valuestring, "UP") == 0)
+        {
+            cmd->tilt = TILT_UP;
+        }
+        else if (strcmp(tilt->valuestring, "DOWN") == 0)
+        {
+            cmd->tilt = TILT_DOWN;
+        }
+    }
+
+    // ESP_LOGI(TAG, "Pan: %d, Tilt: %d", cmd->pan, cmd->tilt);
+
+    cJSON_Delete(json);
+    return ESP_OK;
+}
+
 static esp_err_t servo_move_post_handler(httpd_req_t* req)
 {
     char content[128];
@@ -163,47 +212,12 @@ static esp_err_t servo_move_post_handler(httpd_req_t* req)
 
     content[received] = '\0';
 
-    cJSON* json = cJSON_Parse(content);
-    if (json == NULL)
+    servo_cmd_t cmd;
+    if (parse_servo_cmd(content, &cmd) != ESP_OK)
     {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid JSON");
         return ESP_FAIL;
     }
-
-    servo_cmd_t cmd = {
-        .pan = PAN_NONE,
-        .tilt = TILT_NONE
-    };
-
-    cJSON* pan = cJSON_GetObjectItem(json, "pan");
-    cJSON* tilt = cJSON_GetObjectItem(json, "tilt");
-
-    if (cJSON_IsString(pan))
-    {
-        if (strcmp(pan->valuestring, "LEFT") == 0)
-        {
-            cmd.pan = PAN_LEFT;
-        }
-        else if (strcmp(pan->valuestring, "RIGHT") == 0)
-        {
-            cmd.pan = PAN_RIGHT;
-        }
-    }
-    if (cJSON_IsString(tilt))
-    {
-        if (strcmp(tilt->valuestring, "UP") == 0)
-        {
-            cmd.tilt = TILT_UP;
-        }
-        else if (strcmp(tilt->valuestring, "DOWN") == 0)
-        {
-            cmd.tilt = TILT_DOWN;
-        }
-    }
-
-    // ESP_LOGI(TAG, "Pan: %d, Tilt: %d", cmd.pan, cmd.tilt);
-
-    cJSON_Delete(json);
 
     uart_add_servo_cmd(&cmd);
 
@@ -236,6 +250,71 @@ static const httpd_uri_t servo_move_options = {
     .user_ctx  = NULL
 };
 
+/* Socket of the WebSocket client currently steering, or -1 */
+static int s_ws_fd = -1;
+
+/* Same JSON as /servo_move, one command per text frame, over a socket that
+ * stays open so each command costs no connection setup */
+static esp_err_t servo_ws_handler(httpd_req_t* req)
+{
+    if (req->method == HTTP_GET) {
+        /* Handshake done, this socket now carries servo commands */
+        s_ws_fd = httpd_req_to_sockfd(req);
+        ESP_LOGI(TAG, "WebSocket client connected");
+        return ESP_OK;
+    }
+
+    char content[128];
+    httpd_ws_frame_t frame = {0};
+
+    /* Read the frame length first so an oversized frame can't overflow content */
+    esp_err_t ret = httpd_ws_recv_frame(req, &frame, 0);
+    if (ret != ESP_OK) {
+        return ret;
+    }
+    if (frame.type != HTTPD_WS_TYPE_TEXT || frame.len >= sizeof(content)) {
+        return ESP_OK;
+    }
+
+    frame.payload = (uint8_t*) content;
+    ret = httpd_ws_recv_frame(req, &frame, sizeof(content) - 1);
+    if (ret != ESP_OK) {
+        return ret;
+    }
+    content[frame.len] = '\0';
+
+    servo_cmd_t cmd;
+    if (parse_servo_cmd(content, &cmd) == ESP_OK) {
+        uart_add_servo_cmd(&cmd);
+    }
+
+    return ESP_OK;
+}
+
+static const httpd_uri_t servo_ws = {
+    .uri          = "/ws",
+    .method       = HTTP_GET,
+    .handler      = servo_ws_handler,
+    .user_ctx     = NULL,
+    .is_websocket = true
+};
+
+/* Center both axes the moment the steering client's socket closes (tab
+ * closed, Wi-Fi dropped) instead of waiting for the UART task's timeout */
+static void servo_sock_close(httpd_handle_t hd, int sockfd)
+{
+    if (sockfd == s_ws_fd) {
+        const servo_cmd_t stop = {
+            .pan = PAN_NONE,
+            .tilt = TILT_NONE
+        };
+        uart_add_servo_cmd(&stop);
+        s_ws_fd = -1;
+        ESP_LOGI(TAG, "WebSocket client disconnected");
+    }
+    close(sockfd);
+}
+
 
 esp_err_t http_404_error_handler(httpd_req_t *req, httpd_err_code_t err)
 {
@@ -260,6 +339,7 @@ httpd_handle_t start_webserver(void)
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
 
     config.lru_purge_enable = true;
+    config.close_fn = servo_sock_close;
 
     // Start the httpd server
     ESP_LOGI(TAG, "Starting server on port: '%d'", config.server_port);
@@ -270,6 +350,7 @@ httpd_handle_t start_webserver(void)
         httpd_register_uri_handler(server, &echo);
         httpd_register_uri_handler(server, &servo_move);
         httpd_register_uri_handler(server, &servo_move_options);
+        httpd_register_uri_handler(server, &servo_ws);
 
         return server;
     }

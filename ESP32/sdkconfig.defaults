@@ -1,0 +1,2 @@
+# WebSocket endpoint /ws used by the web client
+CONFIG_HTTPD_WS_SUPPORT=y
